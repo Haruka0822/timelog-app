@@ -1841,13 +1841,10 @@ function renderPie(){
     return;
   }
 
-  // 原本的 block / tier 模式
-  keys=isBlock
-    ?['輸入學習','自媒體輸出','課程建構','AI 工具','覆盤檢討','布局規劃']
-    :['免費試吃品','導讀會','實作營','線上課程','高階客製品','行政/其他'];
-  colors=isBlock
-    ?['#b08070','#a07880','#6a8878','#9a8060','#6878a0','#8898c0']
-    :['#8878a0','#a07880','#b09070','#7a9870','#8a7060','#6e7e8e'];
+  // block / tier 分類一律讀使用者設定，不再寫死
+  const colorPool=['#b08070','#a07880','#6a8878','#9a8060','#6878a0','#8898c0','#8878a0','#b09070','#7a9870','#8a7060','#6e7e8e'];
+  keys=(isBlock?config.blocks:config.tiers).slice();
+  colors=keys.map((_,i)=>colorPool[i%colorPool.length]);
 
   // 週範圍篩選
   const ws=weekStart();
@@ -1867,11 +1864,15 @@ function renderPie(){
   nextBtn.style.opacity=pieOffset===0?'0.3':'1';
   nextBtn.style.cursor=pieOffset===0?'default':'pointer';
 
+  const OTHER='其他';
   const map={};keys.forEach(k=>map[k]=0);
+  let otherSum=0;
   weekTasks.forEach(t=>{
-    const key=isBlock?(t.block||'未分類'):(t.product||'行政/其他');
+    const key=isBlock?(t.block||OTHER):(t.product||OTHER);
     if(map[key]!==undefined) map[key]+=t.duration;
+    else otherSum+=t.duration;  // 對不上現有分類的舊紀錄，收進「其他」避免消失
   });
+  if(otherSum>0){ keys.push(OTHER); map[OTHER]=otherSum; colors.push('#b8b2a6'); }
 
   const total=weekTasks.reduce((s,t)=>s+t.duration,0);
   document.getElementById('pie-total-val').textContent=total>0?fmtMin(total):'—';
