@@ -1047,7 +1047,7 @@ body {
           <input type="text" id="cfg-color-hex" placeholder="#8a7060" maxlength="7"
             style="width:90px;background:var(--paper);border:1px solid var(--rule);border-bottom:2px solid var(--rule);border-radius:4px;padding:7px 9px;font-size:12px;font-family:'DM Mono',monospace;color:var(--ink);outline:none;"
             oninput="syncColorPicker(this.value)">
-          <button onclick="applyCustomColor()" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:7px 14px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;">套用</button>
+          <button onclick="applyCustomColor()" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:7px 14px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;">選用</button>
         </div>
       </div>
     </div>
@@ -2135,14 +2135,9 @@ function applyCustomColor(){
   THEMES['custom']={accent:hex, accentLight:lightHex, mRose:hex, mRoseBg:lightHex};
   THEME_LABELS['custom']='自訂';
 
-  const root=document.documentElement;
-  root.style.setProperty('--accent', hex);
-  root.style.setProperty('--accent-light', lightHex);
-  root.style.setProperty('--m-rose', hex);
-  root.style.setProperty('--m-rose-bg', lightHex);
-
+  // 只選定，不立即套到頁面；統一由「套用設定」生效＋存檔
   renderSettingsUI();
-  notify('自訂色已套用');
+  notify('自訂色已選用，按「套用設定」生效');
 }
 
 // color picker 同步到 hex input
