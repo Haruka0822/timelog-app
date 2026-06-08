@@ -2094,10 +2094,32 @@ function saveSettings(){
   config.kana = document.getElementById('cfg-kana').value.trim() || config.kana;
   config.phaseMain = document.getElementById('cfg-phase-main').value.trim() || config.phaseMain;
   config.phaseDesc = document.getElementById('cfg-phase-desc').value.trim() || config.phaseDesc;
+
+  // 改名同步：使用者在設定頁改了區塊／層次名稱時，把舊紀錄裡的舊名一起換成新名，
+  // 才不會變成對不上分類的「其他」孤兒。趁 saveConfig() 還沒覆蓋前，localStorage 裡仍是舊名。
+  migrateRenames();
+
   saveConfig();
   applyConfig();
   rebuildBlockProductSelects();
   notify('設定已套用');
+}
+
+function migrateRenames(){
+  let old={};
+  try{ old=JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }catch(e){ old={}; }
+  const oldBlocks=old.blocks||[], oldTiers=old.tiers||[];
+  const blockMap={}, tierMap={};
+  // 同一格（同 index）舊名→新名，就是一次改名
+  config.blocks.forEach((nv,i)=>{ const ov=oldBlocks[i]; if(ov&&nv&&ov!==nv) blockMap[ov]=nv; });
+  config.tiers.forEach((nv,i)=>{ const ov=oldTiers[i]; if(ov&&nv&&ov!==nv) tierMap[ov]=nv; });
+  if(!Object.keys(blockMap).length && !Object.keys(tierMap).length) return;
+  let changed=false;
+  tasks.forEach(t=>{
+    if(blockMap[t.block]){ t.block=blockMap[t.block]; changed=true; }
+    if(tierMap[t.product]){ t.product=tierMap[t.product]; changed=true; }
+  });
+  if(changed) save();
 }
 
 function resetSettings(){
