@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>時間記錄通用版</title>
+<title>我的時間記錄</title>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -189,47 +189,62 @@ body {
 /* ─── RUNNING BANNER ─── */
 #running-banner {
   display:none;
-  background:var(--m-sage-bg);
-  border:1px solid #a8c4b4;
-  border-left:3px solid var(--m-sage);
-  border-radius:0 8px 8px 0;
-  padding:14px 18px;
-  margin-bottom:28px;
-  align-items:center;
+  flex-direction:column;
   gap:16px;
+  padding:4px 0;
+  margin-bottom:28px;
   animation:fadeIn .3s ease;
 }
 #running-banner.show{display:flex;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+#running-slots{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  width:100%;
+}
+/* slot 顏色：三種莫蘭迪色 */
+.slot-color-0 { --sc: #6a8878; --sc-bg: #dce8e2; --sc-border: #9fbfac; }
+.slot-color-1 { --sc: #a07880; --sc-bg: #ecdde0; --sc-border: #c09098; }
+.slot-color-2 { --sc: #9a8060; --sc-bg: #ede8de; --sc-border: #b8a080; }
+
+.running-slot{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border-radius:8px;
+  background:var(--sc-bg);
+  border:1px solid var(--sc-border);
+  border-left:3px solid var(--sc);
+}
 .pulse-dot {
-  width:8px;height:8px;border-radius:50%;
-  background:var(--m-sage);flex-shrink:0;
+  width:7px;height:7px;border-radius:50%;
+  background:var(--sc);flex-shrink:0;
   animation:pulse 1.6s ease-in-out infinite;
 }
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.5)}}
+.pulse-dot.paused{animation:none;opacity:.35;}
 .running-info{flex:1;}
-.running-task{font-family:'Shippori Mincho',serif;font-size:15px;font-weight:500;color:var(--m-sage);letter-spacing:.04em;}
-.running-meta{font-size:11px;color:var(--ink3);margin-top:2px;}
-.running-clock{font-family:'DM Mono',monospace;font-size:13px;color:var(--ink2);margin-top:3px;letter-spacing:.06em;}
-#stop-btn{
-  background:var(--m-sage);color:#fff;border:none;
-  border-radius:4px;padding:7px 18px;
-  font-size:11px;font-family:'DM Mono',monospace;
-  letter-spacing:.1em;cursor:pointer;
-  transition:opacity .15s;flex-shrink:0;
-}
-#stop-btn:hover{opacity:.8;}
-#pause-btn{
-  background:transparent;color:var(--m-sage);
-  border:1px solid var(--m-sage);
-  border-radius:4px;padding:7px 18px;
-  font-size:11px;font-family:'DM Mono',monospace;
-  letter-spacing:.1em;cursor:pointer;
+.running-task{font-family:'Shippori Mincho',serif;font-size:14px;font-weight:500;color:var(--sc);letter-spacing:.04em;}
+.running-meta{font-size:11px;color:var(--ink3);margin-top:1px;}
+.running-clock{font-family:'DM Mono',monospace;font-size:12px;color:var(--ink2);margin-top:2px;letter-spacing:.06em;}
+.slot-pause-btn{
+  background:transparent;color:var(--sc);
+  border:1px solid var(--sc);
+  border-radius:4px;padding:5px 12px;
+  font-size:10px;font-family:'DM Mono',monospace;
+  letter-spacing:.08em;cursor:pointer;
   transition:all .15s;flex-shrink:0;
 }
-#pause-btn:hover{background:var(--m-sage-bg);}
-#pause-btn.paused{background:var(--m-sage);color:#fff;}
-#pause-btn.paused:hover{opacity:.8;}
+.slot-pause-btn:hover{background:var(--sc-bg);}
+.slot-pause-btn.paused{background:var(--sc);color:#fff;}
+.slot-stop-btn{
+  background:var(--sc);color:#fff;border:none;
+  border-radius:4px;padding:5px 12px;
+  font-size:10px;font-family:'DM Mono',monospace;
+  letter-spacing:.08em;cursor:pointer;
+  transition:opacity .15s;flex-shrink:0;
+}
+.slot-stop-btn:hover{opacity:.8;}
 
 /* ─── TABS ─── */
 .tab-nav {
@@ -743,14 +758,7 @@ body {
 
 <!-- RUNNING BANNER -->
 <div id="running-banner">
-  <div class="pulse-dot" id="pulse-dot"></div>
-  <div class="running-info">
-    <div class="running-task jp" id="r-name">—</div>
-    <div class="running-meta" id="r-block">—</div>
-    <div class="running-clock mono" id="r-elapsed">00:00:00</div>
-  </div>
-  <button id="pause-btn" onclick="togglePause()">PAUSE</button>
-  <button id="stop-btn" onclick="stopTask()">STOP</button>
+  <div id="running-slots"></div>
 </div>
 
 <!-- TABS -->
@@ -1124,6 +1132,8 @@ body {
 <script>
 const TK=(()=>{try{return JSON.parse(localStorage.getItem('timelog-config'))||{};}catch{return{};}})().storageKey||'timelog-tasks', RK='sqtime-running';
 let tasks=[], running=null, ticker=null, curFilter='all';
+let runningSlots=[];
+let slotTicker=null;
 let selBlock='', selProduct='';
 
 const BLK_CHIP={
@@ -1207,23 +1217,112 @@ function setMode(mode){
 }
 
 function startTask(){
-  if(running){notify('請先停止目前計時');return;}
+  if(runningSlots.length>=3){notify('最多同時進行 3 個任務');return;}
   const name=document.getElementById('ck-name').value.trim();
   if(!name){notify('請輸入任務名稱');return;}
   if(!selBlock){notify('請選擇工作區塊');return;}
   const subtag=document.getElementById('ck-subtag').value.trim();
-  running={name,block:selBlock,product:selProduct||'未分類',subtag,
-    startTs:Date.now()};
-  pausedElapsed=0;isPaused=false;
-  localStorage.setItem(RK,JSON.stringify(running));
-  document.getElementById('r-name').textContent=name;
-  document.getElementById('r-block').textContent=(selBlock||'未分類')+(selProduct&&selProduct!=='未分類'?' · '+selProduct:'')+(subtag?' · '+subtag:'');
-  document.getElementById('running-banner').classList.add('show');
+  const slot={
+    id:Date.now(),
+    name,block:selBlock,product:selProduct||'未分類',subtag,
+    startTs:Date.now(),pausedElapsed:0,isPaused:false
+  };
+  runningSlots.push(slot);
+  saveSlots();
   document.getElementById('ck-name').value='';
   document.getElementById('ck-subtag').value='';
-  startTicker();notify('開始計時');
+  renderRunningBanner();
+  startSlotTicker();
+  notify('開始計時');
 }
-let pausedElapsed=0; // 已累積的暫停前秒數
+
+function toggleSlotPause(id){
+  const slot=runningSlots.find(s=>s.id===id);
+  if(!slot)return;
+  if(!slot.isPaused){
+    slot.pausedElapsed+=Math.floor((Date.now()-slot.startTs)/1000);
+    slot.isPaused=true;
+    notify('已暫停');
+  } else {
+    slot.startTs=Date.now();
+    slot.isPaused=false;
+    notify('繼續計時');
+  }
+  saveSlots();
+  renderRunningBanner();
+}
+
+function stopSlot(id){
+  const idx=runningSlots.findIndex(s=>s.id===id);
+  if(idx<0)return;
+  const slot=runningSlots[idx];
+  const totalSec=slot.isPaused
+    ? slot.pausedElapsed
+    : slot.pausedElapsed+Math.floor((Date.now()-slot.startTs)/1000);
+  const mins=Math.max(Math.round(totalSec/60),1);
+  tasks.unshift({
+    id:Date.now(),name:slot.name,block:slot.block,product:slot.product,
+    subtag:slot.subtag||'',note:'',
+    startTs:slot.id,endTs:Date.now(),
+    duration:mins,status:'完成',
+    date:new Date(slot.id).toISOString().slice(0,10)
+  });
+  save();
+  runningSlots.splice(idx,1);
+  saveSlots();
+  if(runningSlots.length===0){
+    clearInterval(slotTicker);slotTicker=null;
+    document.getElementById('running-banner').classList.remove('show');
+  }
+  renderRunningBanner();
+  updateStats();renderList();renderDash();
+  notify(`完成：${slot.name}（${fmtMin(mins)}）`);
+}
+
+function renderRunningBanner(){
+  const banner=document.getElementById('running-banner');
+  const container=document.getElementById('running-slots');
+  if(!runningSlots.length){banner.classList.remove('show');return;}
+  banner.classList.add('show');
+  container.innerHTML=runningSlots.map((slot,idx)=>{
+    const sec=slot.isPaused
+      ? slot.pausedElapsed
+      : slot.pausedElapsed+Math.floor((Date.now()-slot.startTs)/1000);
+    const meta=(slot.block||'')+(slot.product&&slot.product!=='未分類'?' · '+slot.product:'')+(slot.subtag?' · '+slot.subtag:'');
+    return`<div class="running-slot slot-color-${idx%3}" id="slot-${slot.id}">
+      <div class="pulse-dot${slot.isPaused?' paused':''}"></div>
+      <div class="running-info">
+        <div class="running-task jp">${slot.name}</div>
+        <div class="running-meta">${meta}</div>
+        <div class="running-clock mono" id="slot-clock-${slot.id}">${fmtDur(sec)}</div>
+      </div>
+      <button class="slot-pause-btn${slot.isPaused?' paused':''}" onclick="toggleSlotPause(${slot.id})">${slot.isPaused?'RESUME':'PAUSE'}</button>
+      <button class="slot-stop-btn" onclick="stopSlot(${slot.id})">STOP</button>
+    </div>`;
+  }).join('');
+}
+
+function startSlotTicker(){
+  if(slotTicker)return;
+  slotTicker=setInterval(()=>{
+    runningSlots.forEach(slot=>{
+      if(slot.isPaused)return;
+      const sec=slot.pausedElapsed+Math.floor((Date.now()-slot.startTs)/1000);
+      const el=document.getElementById(`slot-clock-${slot.id}`);
+      if(el)el.textContent=fmtDur(sec);
+    });
+  },1000);
+}
+
+function saveSlots(){
+  localStorage.setItem(RK, JSON.stringify(runningSlots));
+}
+
+// 舊版相容：stopTask / togglePause 保留但導向新邏輯
+function stopTask(){ if(runningSlots.length===1) stopSlot(runningSlots[0].id); }
+function togglePause(){ if(runningSlots.length===1) toggleSlotPause(runningSlots[0].id); }
+
+let pausedElapsed=0;
 let isPaused=false;
 
 function togglePause(){
@@ -1998,6 +2097,7 @@ function saveConfig(){
 function applyConfig(){
   // 標題
   document.querySelector('.title-jp').textContent = config.title;
+  document.title = config.title;
   const kanaEl = document.getElementById('cfg-kana-display');
   if(kanaEl) kanaEl.textContent = config.kana;
   // 階段說明
@@ -2095,8 +2195,8 @@ function saveSettings(){
   config.phaseMain = document.getElementById('cfg-phase-main').value.trim() || config.phaseMain;
   config.phaseDesc = document.getElementById('cfg-phase-desc').value.trim() || config.phaseDesc;
 
-  // 改名同步：使用者在設定頁改了區塊／層次名稱時，把舊紀錄裡的舊名一起換成新名，
-  // 才不會變成對不上分類的「其他」孤兒。趁 saveConfig() 還沒覆蓋前，localStorage 裡仍是舊名。
+  // 改名同步：使用者改了區塊／層次名稱時，把舊紀錄裡的舊名一起換成新名，
+  // 才不會變成對不上分類的「其他」孤兒。趁 saveConfig() 還沒覆蓋前，localStorage 仍是舊名。
   migrateRenames();
 
   saveConfig();
@@ -2110,7 +2210,6 @@ function migrateRenames(){
   try{ old=JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }catch(e){ old={}; }
   const oldBlocks=old.blocks||[], oldTiers=old.tiers||[];
   const blockMap={}, tierMap={};
-  // 同一格（同 index）舊名→新名，就是一次改名
   config.blocks.forEach((nv,i)=>{ const ov=oldBlocks[i]; if(ov&&nv&&ov!==nv) blockMap[ov]=nv; });
   config.tiers.forEach((nv,i)=>{ const ov=oldTiers[i]; if(ov&&nv&&ov!==nv) tierMap[ov]=nv; });
   if(!Object.keys(blockMap).length && !Object.keys(tierMap).length) return;
@@ -2238,6 +2337,25 @@ function rebuildBlockProductSelects(){
 // init
 loadConfig();applyConfig();rebuildBlockProductSelects();
 load();updateDate();setInterval(updateDate,60000);
+// 恢復進行中的任務
+try{
+  const saved=localStorage.getItem(RK);
+  if(saved){
+    const parsed=JSON.parse(saved);
+    // 支援新版（陣列）和舊版（單一物件）
+    if(Array.isArray(parsed)) runningSlots=parsed;
+    else if(parsed&&parsed.name) runningSlots=[{
+      id:parsed.startTs||Date.now(),
+      name:parsed.name,block:parsed.block||'',product:parsed.product||'未分類',
+      subtag:parsed.subtag||'',startTs:parsed.startTs||Date.now(),
+      pausedElapsed:0,isPaused:false
+    }];
+  }
+}catch(e){runningSlots=[];}
+if(runningSlots.length){
+  renderRunningBanner();
+  startSlotTicker();
+}
 updateStats();renderList();updateSubtagList();
 if(running){
   document.getElementById('r-name').textContent=running.name;
